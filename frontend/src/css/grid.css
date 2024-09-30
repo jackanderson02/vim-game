@@ -1,0 +1,39 @@
+:root{
+    --cell-dim: 75px;
+}
+.grid-container {
+  display: inline-block;
+}
+
+.grid-row {
+  display: flex;
+}
+
+.cell {
+  display: inline-block;
+  font-family: monospace;
+  font-size: calc(var(--cell-dim)/3);
+  text-align: center;
+  border: thin ridge blue;
+  justify-content: center;
+  align-items: center;
+  width: var(--cell-dim);
+  height: var(--cell-dim); 
+  text-align: center;
+  vertical-align: middle;
+  line-height: var(--cell-dim); 
+}
+
+.cursor {
+  border: 2px solid black;
+  animation: blink 1s steps(1, start) infinite;
+}
+
+@keyframes blink {
+  0%, 100% {
+    background-color: lightgrey;
+  }
+  50% {
+    background-color: grey;
+  }
+}

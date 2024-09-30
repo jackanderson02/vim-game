@@ -1,17 +1,20 @@
 import { useEffect } from "react";
-import DealsCarousel from "../components/DealsCarousel";
-import CookieConsent from "../components/CookieConsent";
+import CharacterGrid from "../components/CharacterGrid";
 
 const Home = () => {
   useEffect(() => {}, []);
 
+  const gridData = [
+  ['H', 'e', 'l', 'l', 'o'],
+  ['W', 'o', 'r', 'l', 'd']
+];
+
+  const cursorPosition = { row: 1, col: 3 }; // Example cursor position from backend API
+
   return (
-    <div>
-      <h2>Welcome to our Deals</h2>
-      <DealsCarousel />
-      <CookieConsent />
-    </div>
+    <CharacterGrid gridData={gridData} cursorPosition={cursorPosition} />
   );
+
 };
 
 export default Home;
