@@ -15,3 +15,8 @@ Runs in detached mode so you can stop it from same terminal, remove -d for debug
 
 docker stop run; docker rm run
 
+
+### Doing everything at once
+
+docker stop run; docker rm run; docker build -t run -f docker-prod .; docker run -p 8080:8080 --name run run
+
