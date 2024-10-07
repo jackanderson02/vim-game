@@ -3,7 +3,7 @@ import CharacterGrid from "../components/CharacterGrid";
 import { useState } from "react";
 
 const Home = () => {
-  const [level, setLevel] = useState([])
+  const [level, setLevel] = useState(null)
   const fetchLevel = async () => {
     try{
       // const response = await fetch('host.docker.internal:8080/level', {

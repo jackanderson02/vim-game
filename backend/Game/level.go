@@ -2,6 +2,7 @@ package game
 
 import (
 	"vim-zombies/Utilities"
+	"math"
 )
 
 
@@ -10,6 +11,10 @@ type Cursor struct {
 	Column int // 0 indexed `json: "column" vim:"column"`
 }
 
+type LevelTime struct{
+	StartMS int64 
+	BestTimeMS int64
+}
 
 type Level struct{
 	LevelName string
@@ -20,6 +25,7 @@ type Level struct{
 	InitialLevelState [][]bool
 	CursorCallback (func(Cursor))
 	ProhibitedInputs []string
+	levelTime *LevelTime
 }
 
 
@@ -68,6 +74,9 @@ func NewNavigateLevel(name string, initalText [][]byte, bufferImmutable bool) Le
 		InitialLevelState: copyInitialLevelState,
 		CursorCallback: CursorCallback,
 		ProhibitedInputs: []string{"W", "<S-W>", "W", "<S-B>"},
+		levelTime: &LevelTime{
+			BestTimeMS: math.MaxInt64,
+		},
 	}
 }
 func (lvl *Level) HasWonLevel() bool{
@@ -88,4 +97,6 @@ func ConvertBytesToStrings(byteArray [][]byte) [][]string{
 
 func (lvl *Level) resetLevel(){
 	util.Copy2DArrayBool(lvl.LevelState, lvl.InitialLevelState)
+	
+	
 }

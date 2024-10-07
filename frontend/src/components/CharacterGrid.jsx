@@ -2,20 +2,38 @@ import CharacterCell from "./CharacterCell";
 import { Arrow90degRight } from "react-bootstrap-icons";
 import "../css/grid.css"
 import { useEffect, useState } from "react";
+import { Button } from "react-bootstrap";
+
 
 
 const MAX_KEYS_DISPLAYED = 15
 
 const CharacterGrid = ({ gridData, fetchLevel}) => {
 
-  const fetchLevelAndCursor = () => {
-    setCursor(fetchLevel())
+  const fetchLevelAndCursor = async () => {
+    setCursor(await fetchLevel())
   }
 
-  const [keysPressed, setKeysPressed] = useState("")
-  const [cursor, setCursor] = useState({Row: 0, Column:0})
-  // const [finished, setFinished] = useState(false)
+  const requestResetLevel = async () => {
+      try{
 
+        const response = await fetch('http://localhost:8080/resetLevel', {
+          method: 'GET',
+        });
+        if (!response.ok){
+          throw new Error("Failed to fetch data.")
+        }
+        fetchLevelAndCursor()
+        
+
+      } catch (error){
+        console.error("Error resetting level", error)
+      }
+    }
+
+  const [keysPressed, setKeysPressed] = useState("")
+  const [cursor, setCursor] = useState({Row:0, Column: 0})
+  const [bestTime, setBestTime] = useState(0)
 
 
   const vimifiedMappings = {
@@ -87,18 +105,22 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         if (!response.ok){
           throw new Error("Failed to fetch data.")
         }
+
         const responseJSON= await response.json()
-        const cursor = responseJSON.cursor
+        console.log(responseJSON)
 
-
+        const responseCursor = responseJSON.cursor
         const finished = responseJSON.finished
+        const responseBestTime = responseJSON.bestTime
+
+        setBestTime(responseBestTime)
         if(finished){
           // Go off and fetch data gain
           console.log("Fetching next level")
           fetchLevelAndCursor()
         }
         // setFinished(responseJSON.finished)
-        setCursor({Row: cursor.Row, Column: cursor.Column})
+        setCursor({Row: responseCursor.Row, Column: responseCursor.Column})
 
       } catch (error){
         console.error("Error fetching levels", error)
@@ -117,8 +139,10 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
 
   return (
     <>
-      <div className="grid-container">
-        {gridData.map((row, rowIndex) => (
+    {bestTime ? (<h1>{bestTime}</h1>) : <div></div>}
+    {/* // {bestTime && (<h1>{bestTime}</h1>)} */}
+    <div className="grid-container">
+        {gridData ? gridData.map((row, rowIndex) => (
           <div key={rowIndex} className="grid-row">
             {row.map((char, colIndex) => (
               <CharacterCell
@@ -128,13 +152,9 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
               />
             ))}
           </div>
-        ))}
+        )): <div></div>}
       <h2>{keysPressed}</h2>
-          {/* {finished && (<> <div style={{position: "relative", float:"right", }}>
-            <h3>Next level</h3>
-            <Arrow90degRight  style={{width:"50px", height:"50px"}}onClick={() => getNextLevel()}></Arrow90degRight>
-
-             </div> </>  )} */}
+      {gridData ? (<Button variant="warning" style={{position: "relative", float:"right"}} onClick={() => requestResetLevel()}><h3> Reset level</h3></Button>): <div></div>}
       
       </div>
     </>

@@ -30,6 +30,7 @@ func main() {
 	
 	router := http.NewServeMux()
 	router.HandleFunc("GET /level/", gameInstance.GetLevel)
+	router.HandleFunc("GET /resetLevel", gameInstance.ResetLevel)
 	router.HandleFunc("POST /keyPress", gameInstance.HandleKeyPress)
 	// router.HandleFunc("DELETE /api/users/{id}", userAPI.DeleteUser)
 	// router.HandleFunc("PUT /api/users/{id}", userAPI.UpdateUser)

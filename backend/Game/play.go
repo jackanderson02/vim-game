@@ -3,6 +3,8 @@ package game
 
 import(
 	"fmt"
+	"time"
+	// "math"
 	"slices"
 	"strings"
 	"log"
@@ -124,20 +126,26 @@ func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Req
 		lvl.CursorCallback(vi.cursor)
 	}
 
+	var responseBestTime int64 = 0;
+
 	finished := lvl.HasWonLevel()
 	if(finished){
 		log.Print("Finished level")
 		vi.ProgressLevel()
+		responseBestTime = lvl.levelTime.BestTimeMS
 	}
+
+
 
 	response := struct{
 		Cursor Cursor `json:"cursor"`
 		IsFinished bool `json:"finished"`
+		BestTime float64 `json:"bestTime"`
 	}{
 		vi.cursor,
 		finished,
+		float64(float64(responseBestTime)/1000.0),
 	}
-
 	writer.WriteHeader(http.StatusOK)
 	json.NewEncoder(writer).Encode(response)
 
@@ -184,6 +192,10 @@ func (vi *Instance) initFromLevel() {
 	}
 	// Cursor position will reset when new buffer loaded
 	vi.updateCursorPosition()
+
+	// Start the timer for this level
+	lvl.levelTime.StartMS = time.Now().UnixMilli()
+	// log.Print(lvl.levelTime.StartMS)
 	
 }
 
@@ -247,8 +259,24 @@ func (vi *Instance) GetCurrentLevel() Level {
 func (vi *Instance) ProgressLevel() {
 	// Reset just completed level so that it can be used again
 	var lvl Level = vi.GetCurrentLevel()
-	var plevel *Level = &lvl
-	plevel.resetLevel()
+	log.Printf("Start time %d", lvl.levelTime.StartMS)
+	completionTime := (time.Now().UnixMilli() - lvl.levelTime.StartMS)
+
+	if(completionTime < lvl.levelTime.BestTimeMS){
+		log.Printf("New best time: %d", completionTime)
+		lvl.levelTime.BestTimeMS = completionTime
+	}
+
+	
 	vi.currentLevel = (vi.currentLevel + 1)%(len(vi.levels)) // Need to actually update the buffer once the level has been completed
 	vi.initFromLevel() // Actually populate the buffer with the new level.
+}
+
+
+func (vi *Instance) ResetLevel(writer http.ResponseWriter, request *http.Request) {
+	log.Print("Got request to reset current level")
+	var lvl Level = vi.GetCurrentLevel()
+	lvl.resetLevel()
+	vi.initFromLevel()
+	writer.WriteHeader(http.StatusOK)
 }
