@@ -2,6 +2,7 @@ package game
 
 import (
 	"vim-zombies/Utilities"
+	"time"
 	"math"
 )
 
@@ -18,71 +19,123 @@ type LevelTime struct{
 
 type Level struct{
 	LevelName string
-	Text [][]byte
-	BufferImmutable bool
-	isFinished (func() bool)
-	LevelState [][]bool
-	InitialLevelState [][]bool
-	CursorCallback (func(Cursor))
-	ProhibitedInputs []string
-	levelTime *LevelTime
+	text [][]byte
+	bufferImmutable bool
+	levelState [][]bool
+	initialLevelState [][]bool
+	LevelTime *LevelTime
 }
 
+type NavigateLevel struct{
+	Level
+}
 
-func NewNavigateLevel(name string, initalText [][]byte, bufferImmutable bool) Level{
+type CompletableLevel interface{
+	FillTextBlanks()
+	GetText() [][]byte
+	GetBestTime() int64
+	IsFinished() bool
+	GetProhibtedInputs() []string
+	IsBufferImmutable() bool
+	CursorCallback(Cursor)
+	startLevel()
+	finishLevel() int64
+	resetLevel()
+}
+
+func FalseLvlStateFromText(text [][]byte) [][]bool{
+	LevelState:= make([][]bool, len(text))
+	for i := range LevelState{
+		LevelState[i] = make([]bool, len(text[i]))
+	}
+
+	return LevelState
+}
+
+func (navLvl *NavigateLevel) CursorCallBack(cursorPosition Cursor){
+	navLvl.levelState[cursorPosition.Row][cursorPosition.Column] = true
+}
+
+func (navLvl *NavigateLevel) IsFinished() bool{
+	finished := true 
+	stringBuffer := ConvertBytesToStrings(navLvl.text)
+	for i, row:= range(stringBuffer){
+		for j, _ := range(row){
+			if(stringBuffer[i][j] != " "){
+				finished = finished && navLvl.levelState[i][j]
+			}
+		}
+	}
+
+	return finished
+}
+
+func (navLvl *NavigateLevel) GetProhibtedInputs() []string{
+	return []string{"W", "<S-W>", "W", "<S-B>"} 
+}
+
+func NewNavigateLevel(name string, initalText [][]byte, bufferImmutable bool) NavigateLevel{
 	// Creates a new level whose win condition is to navgiate to all non-space characters
 	// in the given initialText buffer
 
 	// Construct LevelState to be false everywhere initially
-
-	LevelState:= make([][]bool, len(initalText))
-	for i := range LevelState{
-		LevelState[i] = make([]bool, len(initalText[i]))
-	}
+	LevelState := FalseLvlStateFromText(initalText)
 	
-	// Go through each position and check whether each non empty byte has been visited
-	var isFinishedNavigate = func() bool{
-		finished := true 
-		stringBuffer := ConvertBytesToStrings(initalText)
-		for i, row:= range(stringBuffer){
-			for j, _ := range(row){
-				// string buffer is a character we want to navigate to and they have been there
-				// log.Print(stringBuffer[i][j] != " ")
-				if(stringBuffer[i][j] != " "){
-					finished = finished && LevelState[i][j]
-				}
-			}
-		}
-
-		return finished
-	}
-
-	// Given the new cursor position, set that positon in the LevelState array to true
-	var CursorCallback = func(cursorPosition Cursor) {
-		LevelState[cursorPosition.Row][cursorPosition.Column] = true
-		// log.Print(LevelState)
-	}
-
 	var copyInitialLevelState = make([][]bool, len(LevelState))
 	util.Copy2DArrayBool(copyInitialLevelState, LevelState)
-	return Level{
+	return NavigateLevel{Level{
 		LevelName: name,
-		Text: initalText,
-		BufferImmutable: bufferImmutable,
-		isFinished: isFinishedNavigate,
-		LevelState: LevelState,
-		InitialLevelState: copyInitialLevelState,
-		CursorCallback: CursorCallback,
-		ProhibitedInputs: []string{"W", "<S-W>", "W", "<S-B>"},
-		levelTime: &LevelTime{
+		text: initalText,
+		bufferImmutable: bufferImmutable,
+		levelState: LevelState,
+		initialLevelState: copyInitialLevelState,
+		LevelTime: &LevelTime{
 			BestTimeMS: math.MaxInt64,
 		},
-	}
-}
-func (lvl *Level) HasWonLevel() bool{
-	return lvl.isFinished()
+	}}
 }
 
+func (lvl *Level) GetBestTime() int64{
+	return lvl.LevelTime.BestTimeMS
+}
+
+func (lvl *Level) GetProhibtedInputs() []string{
+	return []string{}
+}
+
+func (lvl *Level) CursorCallback(_ Cursor) {
+	return
+}
+
+func (lvl *Level) IsBufferImmutable() bool{
+	return lvl.bufferImmutable
+}
+
+func (lvl *Level) GetText() [][]byte{
+	return lvl.text
+}
+
+func (lvl *Level) FillTextBlanks() {
+	txt := lvl.text
+	var max_len int = 0
+	for _,v := range(txt){
+		if max_len < len(v){
+			max_len = len(v)
+		}
+	}
+	// Then Fill in blanks
+	txt_copy := make([][]byte, len(txt))
+	for i, v := range(txt){
+		txt_copy[i] = make([]byte, max_len)
+		copy(txt_copy[i], v)
+		// Need to then append max_len - len(v) empty slots
+		for j:= 0; j <(max_len-len(v)); j++{
+			txt_copy[i][len(v) + j -1] = byte(' ')
+		}
+	}
+	copy(lvl.text, txt_copy)
+	lvl.text = txt_copy
+}
 func ConvertBytesToStrings(byteArray [][]byte) [][]string{
 	stringArray := make([][]string, len(byteArray))
 	for i, row := range byteArray {
@@ -95,8 +148,21 @@ func ConvertBytesToStrings(byteArray [][]byte) [][]string{
 	return stringArray
 }
 
+func (lvl *Level) startLevel() {
+	lvl.LevelTime.StartMS = time.Now().UnixMilli()
+}
+
+func (lvl *Level) finishLevel() int64{
+
+	completionTime := (time.Now().UnixMilli() - lvl.LevelTime.StartMS)
+	if completionTime < lvl.LevelTime.BestTimeMS {
+		lvl.LevelTime.BestTimeMS = completionTime
+	}
+
+	return completionTime
+
+}
+
 func (lvl *Level) resetLevel(){
-	util.Copy2DArrayBool(lvl.LevelState, lvl.InitialLevelState)
-	
-	
+	util.Copy2DArrayBool(lvl.levelState, lvl.initialLevelState)
 }

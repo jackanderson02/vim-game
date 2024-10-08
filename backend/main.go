@@ -3,31 +3,31 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"vim-zombies/Game"
+	game "vim-zombies/Game"
 )
 
 func CorsMiddleware(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-        writer.Header().Set("Access-Control-Allow-Origin", "*")
-        // writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        // writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		// writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		// writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-        // Handle OPTIONS method (preflight request)
-        if request.Method == http.MethodOptions {
-            writer.WriteHeader(http.StatusOK)
-            return
-        }
+		// Handle OPTIONS method (preflight request)
+		if request.Method == http.MethodOptions {
+			writer.WriteHeader(http.StatusOK)
+			return
+		}
 
-        // Continue with the next handler
-        next.ServeHTTP(writer, request)
-    })
+		// Continue with the next handler
+		next.ServeHTTP(writer, request)
+	})
 }
 
 func main() {
 
 	// Now, just get new play Instance
 	gameInstance := game.NewInstance()
-	
+
 	router := http.NewServeMux()
 	router.HandleFunc("GET /level/", gameInstance.GetLevel)
 	router.HandleFunc("GET /resetLevel", gameInstance.ResetLevel)
