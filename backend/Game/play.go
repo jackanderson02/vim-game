@@ -25,8 +25,16 @@ type Instance struct {
 	window       nvim.Window
 	cursor       Cursor
 	levels       []CompletableLevel
+	InstanceResponse map[string]interface{}
 	currentLevel int
 	Cleanup      func()
+}
+
+type InstanceResponse struct {
+	Cursor     Cursor  `json:"cursor"`
+	IsFinished bool    `json:"finished"`
+	BestTime   float64 `json:"bestTime"`
+	ShouldReload bool `json:"shouldReload"`
 }
 
 
@@ -50,6 +58,7 @@ func baselineInstance() Instance {
 		window:       windows[0],
 		currentLevel: 0,        // Start on the first level
 		Cleanup:      cleanup,
+		InstanceResponse: make(map[string]interface{}),
 	}
 
 	return vi
@@ -116,7 +125,7 @@ func (vi *Instance) makeKeyPressIfValid(key string) {
 	}
 }
 
-func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Request) {
+func (vi *Instance) HandleKeyPress(request *http.Request) {
 
 	var keypress KeyPress
 	lvl := vi.GetCurrentLevel()
@@ -154,23 +163,19 @@ func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Req
 
 	log.Printf("Best time %d" , responseBestTime )
 
-	response := struct {
-		Cursor     Cursor  `json:"cursor"`
-		IsFinished bool    `json:"finished"`
-		BestTime   float64 `json:"bestTime"`
-	}{
-		vi.cursor,
-		finished,
-		float64(float64(responseBestTime) / 1000.0),
-	}
-	err = json.NewEncoder(writer).Encode(response)
+	// Update the response map
+	vi.InstanceResponse["cursor"] = vi.cursor
+	vi.InstanceResponse["finished"] = finished
+	vi.InstanceResponse["bestTime"] = float64(float64(responseBestTime) / 1000.0)
 
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-	} else {
-		writer.WriteHeader(http.StatusOK)
-	}
+}
 
+
+func (vi *Instance) WriteInstanceResponseToWriter(writer http.ResponseWriter){
+	log.Print("Writing instance response\n")
+	log.Println(vi.InstanceResponse)
+	json.NewEncoder(writer).Encode(vi.InstanceResponse)
+	// vi.ClearResponse()
 }
 
 func (vi *Instance) initFromLevel() {
@@ -198,25 +203,16 @@ func (vi *Instance) initFromLevel() {
 	lvl.startLevel()
 
 }
+func (vi *Instance) ClearResponse(){
+	vi.InstanceResponse = make(map[string]interface{})
+}
 
 func (vi *Instance) GetLevel(writer http.ResponseWriter, request *http.Request) {
 	log.Print("Got request for current level.")
 	var stringLevel [][]string = ConvertBytesToStrings(vi.GetCurrentLevel().GetText())
-	response := struct {
-		Level  [][]string `json:"level"`
-		Cursor Cursor     `json:"cursor"`
-	}{
-		stringLevel,
-		vi.cursor,
-	}
 	// When returning the level, also return the current cursor position
-	err := json.NewEncoder(writer).Encode(response)
-
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-	} else {
-		writer.WriteHeader(http.StatusOK)
-	}
+	vi.InstanceResponse["level"] = stringLevel
+	vi.InstanceResponse["cursor"] = vi.cursor
 
 }
 func initLevels() []CompletableLevel {
@@ -271,5 +267,4 @@ func (vi *Instance) ResetLevel(writer http.ResponseWriter, request *http.Request
 	var lvl CompletableLevel = vi.GetCurrentLevel()
 	lvl.resetLevel()
 	vi.initFromLevel()
-	writer.WriteHeader(http.StatusOK)
 }

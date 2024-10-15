@@ -2,12 +2,10 @@ package game
 
 import(
 	"vim-zombies/Utilities"
-	"log"
 )
 
 
 func (navLvl *NavigateLevel) CursorCallback(cursorPosition Cursor){
-	log.Println(navLvl.levelState)
 	navLvl.levelState[cursorPosition.Row][cursorPosition.Column] = true
 }
 

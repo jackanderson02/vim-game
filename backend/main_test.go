@@ -42,7 +42,7 @@ func TestLevelProgression(t *testing.T) {
 	// Allows us to skip a level
 	var dummyInstance *game.Instance
 
-	var dummyLevelTime game.LevelTime = game.LevelTime{
+	var dummyLevelTime *game.LevelTime = &game.LevelTime{
 		0,0,
 	}
 

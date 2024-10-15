@@ -16,18 +16,18 @@ import (
 const TIMEOUT_AFTER_S = 120 
 type Session struct {
 	vi *game.Instance
-	lastInteraction time.Time
+	lastInteractionUnixMS int64
 }
 
 type AuthenticatedUsersMutex struct{
-	authenticatedUsers map[string]Session
+	authenticatedUsers map[string]*Session
 	sync.Mutex
 }
 
 var usersMapMutex AuthenticatedUsersMutex;
 func init(){
 	usersMapMutex = AuthenticatedUsersMutex{
-		authenticatedUsers: make(map[string]Session),
+		authenticatedUsers: make(map[string]*Session),
 	}
 	go checkForExpiredSessions()
 }
@@ -37,9 +37,8 @@ func checkForExpiredSessions(){
 		usersMapMutex.Lock()
 		// Check all concurrent sessions to see if any have expired
 		for id, session := range(usersMapMutex.authenticatedUsers){
-			if time.Now().After(session.lastInteraction.Add(time.Duration(time.Second * TIMEOUT_AFTER_S ))){
+			if time.Now().UnixMilli() >= session.lastInteractionUnixMS + 1000*TIMEOUT_AFTER_S{
 				// delete this session
-				log.Printf("Removing session with id %s", id)
 				session.vi.Cleanup()
 				delete(usersMapMutex.authenticatedUsers, id)
 			}
@@ -49,6 +48,7 @@ func checkForExpiredSessions(){
 	}
 
 }
+
 func GetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
 	vi := session.vi
@@ -57,6 +57,7 @@ func GetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	}else{
 		vi.GetLevel(writer, request)
 	}
+	vi.WriteInstanceResponseToWriter(writer)
 }
 func ResetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
@@ -66,7 +67,7 @@ func ResetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	}else{
 		vi.ResetLevel(writer, request)
 	}
-
+	vi.WriteInstanceResponseToWriter(writer)
 }
 func HandleKeyPressWrapper(writer http.ResponseWriter, request *http.Request){
 	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
@@ -74,17 +75,16 @@ func HandleKeyPressWrapper(writer http.ResponseWriter, request *http.Request){
 	if err != nil{
 		log.Print(err.Error())
 	}else{
-		vi.HandleKeyPress(writer, request)
+		vi.HandleKeyPress(request)
 	}
+	vi.WriteInstanceResponseToWriter(writer)
 }
 
 type HTTPWrapper struct{
 	writer http.ResponseWriter
 	request *http.Request
 }
-func AuthenticateUser(httpWrapper *HTTPWrapper) (Session, error){
-
-	// TODO handle cookie expiration
+func AuthenticateUser(httpWrapper *HTTPWrapper) (*Session, error){
 
 	req := struct{
 		Unique_id string `json:"auth_key"`
@@ -92,18 +92,15 @@ func AuthenticateUser(httpWrapper *HTTPWrapper) (Session, error){
 
 	request := httpWrapper.request
 
-
 	bodyBytes, _:= io.ReadAll(request.Body)
 	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 
 	err := json.NewDecoder(request.Body).Decode(&req)
 	
 	if err != nil{
-		return Session{},errors.New("Failed to decode auth_token from JSON.")
+		return &Session{},errors.New("Failed to decode auth_token from JSON.")
 	}
 
-	log.Printf("auth_key: %s",req.Unique_id) 
 
 
 	// Enter concurrency section
@@ -115,16 +112,21 @@ func AuthenticateUser(httpWrapper *HTTPWrapper) (Session, error){
 		newInstance := game.NewInstance();
 		newSession := Session{
 			vi: &newInstance,
-			lastInteraction: time.Now(),
 		}
-		usersMapMutex.authenticatedUsers[req.Unique_id] = newSession
+		usersMapMutex.authenticatedUsers[req.Unique_id] = &newSession
 	}
 
 	userSession := usersMapMutex.authenticatedUsers[req.Unique_id]
-	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-	
 	usersMapMutex.Unlock()
 	// Exit concurrency section
+
+	userSession.lastInteractionUnixMS = time.Now().UnixMilli();
+	userSession.vi.InstanceResponse["shouldReload"] = !ok
+	// Reload iff new user was just created, this forces a frontend reload which involves
+	// fetching the level and cursor again in the event that the connection was timed out.
+
+	request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	
 
 	return userSession, nil
 

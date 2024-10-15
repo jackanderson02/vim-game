@@ -116,14 +116,14 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         const responseCursor = responseJSON.cursor
         const finished = responseJSON.finished
         const responseBestTime = responseJSON.bestTime
+        const shouldReload = responseJSON.shouldReload
 
         setBestTime(responseBestTime)
-        if(finished){
-          // Go off and fetch data gain
+        if(finished || shouldReload){
+          // Go off and fetch data again
           console.log("Fetching next level")
           fetchLevelAndCursor()
         }
-        // setFinished(responseJSON.finished)
         setCursor({Row: responseCursor.Row, Column: responseCursor.Column})
 
       } catch (error){
