@@ -2,11 +2,12 @@ package game
 
 import(
 	"vim-zombies/Utilities"
-	"math"
+	"log"
 )
 
 
 func (navLvl *NavigateLevel) CursorCallback(cursorPosition Cursor){
+	log.Println(navLvl.levelState)
 	navLvl.levelState[cursorPosition.Row][cursorPosition.Column] = true
 }
 
@@ -43,8 +44,5 @@ func NewNavigateLevel(name string, initalText [][]byte, bufferImmutable bool) Na
 		bufferImmutable: bufferImmutable,
 		levelState: LevelState,
 		initialLevelState: copyInitialLevelState,
-		LevelTime: &LevelTime{
-			BestTimeMS: math.MaxInt64,
-		},
 	}}
 }

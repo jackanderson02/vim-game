@@ -38,9 +38,6 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
   const [keysPressed, setKeysPressed] = useState("")
   const [cursor, setCursor] = useState({Row:0, Column: 0})
   const [bestTime, setBestTime] = useState(0)
-  useEffect(() => {
-
-  }, [])
 
 
   const vimifiedMappings = {

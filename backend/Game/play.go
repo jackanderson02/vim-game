@@ -152,6 +152,8 @@ func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Req
 		responseBestTime = lvl.GetBestTime()
 	}
 
+	log.Printf("Best time %d" , responseBestTime )
+
 	response := struct {
 		Cursor     Cursor  `json:"cursor"`
 		IsFinished bool    `json:"finished"`
@@ -258,14 +260,10 @@ func (vi *Instance) GetCurrentLevel() CompletableLevel{
 
 }
 
-// Game levels wrap around
 func (vi *Instance) ProgressLevel() {
-	// Reset just completed level so that it can be used again
-	var lvl CompletableLevel = vi.GetCurrentLevel()
-	lvl.finishLevel()
-
-	vi.currentLevel = (vi.currentLevel + 1) % (len(vi.levels)) // Need to actually update the buffer once the level has been completed
-	vi.initFromLevel()                                         // Actually populate the buffer with the new level.
+	vi.GetCurrentLevel().finishLevel() // finish the current level to update the times
+	vi.currentLevel = (vi.currentLevel + 1) % (len(vi.levels))  // Update to point to the next level; game levels wrap around
+	vi.initFromLevel()                                         
 }
 
 func (vi *Instance) ResetLevel(writer http.ResponseWriter, request *http.Request) {

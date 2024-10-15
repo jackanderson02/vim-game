@@ -1,6 +1,8 @@
 package game
 
 import (
+	"log"
+	"math"
 	"time"
 	"vim-zombies/Utilities"
 )
@@ -37,7 +39,7 @@ type CompletableLevel interface {
 	IsBufferImmutable() bool
 	CursorCallback(Cursor)
 	startLevel()
-	finishLevel() int64
+	finishLevel() 
 	resetLevel()
 }
 
@@ -106,18 +108,17 @@ func (lvl *Level) startLevel() {
 
 	lvl.LevelTime = &LevelTime{
 		StartMS:    time.Now().UnixMilli(),
-		BestTimeMS: 0,
+		BestTimeMS: math.MaxInt64,
 	}
 }
 
-func (lvl *Level) finishLevel() int64 {
+func (lvl *Level) finishLevel() {
 
 	completionTime := (time.Now().UnixMilli() - lvl.LevelTime.StartMS)
 	if completionTime < lvl.LevelTime.BestTimeMS {
 		lvl.LevelTime.BestTimeMS = completionTime
 	}
-
-	return completionTime
+	log.Print(completionTime)
 
 }
 
