@@ -2,7 +2,6 @@ package game
 
 import (
 	"time"
-	"log"
 	"vim-zombies/Utilities"
 )
 
@@ -60,7 +59,6 @@ func (lvl *Level) GetProhibtedInputs() []string {
 }
 
 func (lvl *Level) CursorCallback(_ Cursor) {
-	log.Print("Calling here")
 }
 
 func (lvl *Level) IsBufferImmutable() bool {

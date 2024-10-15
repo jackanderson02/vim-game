@@ -1,0 +1,31 @@
+# Use Ubuntu as the base image and install everything needed
+FROM ubuntu:latest
+
+# Install necessary packages (Neovim, Go, curl, tar, wget)
+RUN apt-get update && \
+    apt-get install -y neovim curl tar wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Go manually using wget and the correct download URL
+RUN wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.23.0.linux-amd64.tar.gz && \
+    rm go1.23.0.linux-amd64.tar.gz
+
+# Add Go to the PATH
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy all application code
+COPY . .
+
+# Expose necessary ports for Neovim and the Go app
+EXPOSE 8080
+EXPOSE 6665
+
+# Start Neovim, run tests, and then the main Go application
+CMD ["sh", "-c", "nvim --headless --listen 127.0.0.1:6665 & sleep 2 && go test ./... -v -coverpkg=./..."]
+
+

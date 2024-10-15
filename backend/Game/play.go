@@ -29,6 +29,7 @@ type Instance struct {
 	Cleanup      func()
 }
 
+
 func baselineInstance() Instance {
 	log.Println("Initializing Neovim...")
 	vim, cleanup, err := util.ConnectWhenReady()
@@ -160,7 +161,6 @@ func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Req
 		finished,
 		float64(float64(responseBestTime) / 1000.0),
 	}
-	log.Println(finished)
 	err = json.NewEncoder(writer).Encode(response)
 
 	if err != nil {
