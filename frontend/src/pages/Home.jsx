@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import CharacterGrid from "../components/CharacterGrid";
 import { useState } from "react";
 import { useContext } from "react";
-import UserContext from "../context/IDContext";
+import UserContext from "../context/UserContext";
 
 const Home = () => {
   const [level, setLevel] = useState(null)
