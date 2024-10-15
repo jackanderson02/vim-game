@@ -3,13 +3,20 @@ import { Arrow90degRight } from "react-bootstrap-icons";
 import "../css/grid.css"
 import { useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
-
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 
 const MAX_KEYS_DISPLAYED = 15
 
 const CharacterGrid = ({ gridData, fetchLevel}) => {
 
+  let visitorId
+  FingerprintJS.load().then(fp => {
+    fp.get().then(result => {
+        visitorId = result.visitorId;
+        console.log(visitorId); // Logs a unique fingerprint ID for the device
+    });
+  });
   const fetchLevelAndCursor = async () => {
     setCursor(await fetchLevel())
   }
@@ -18,7 +25,9 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
       try{
 
         const response = await fetch('http://localhost:8080/resetLevel', {
-          method: 'GET',
+          method: 'POST',
+          headers: {'Content-type': 'application/json'},
+          body: JSON.stringify({key: vimKeyEvent, auth_key: visitorId})
         });
         if (!response.ok){
           throw new Error("Failed to fetch data.")
@@ -34,6 +43,9 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
   const [keysPressed, setKeysPressed] = useState("")
   const [cursor, setCursor] = useState({Row:0, Column: 0})
   const [bestTime, setBestTime] = useState(0)
+  useEffect(() => {
+
+  }, [])
 
 
   const vimifiedMappings = {
@@ -100,7 +112,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
 
         const response = await fetch('http://localhost:8080/keyPress', {
           method: 'POST',
-          body: JSON.stringify({key: vimKeyEvent})
+          body: JSON.stringify({key: vimKeyEvent, auth_key: visitorId})
         });
         if (!response.ok){
           throw new Error("Failed to fetch data.")

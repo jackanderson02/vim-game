@@ -47,7 +47,6 @@ func baselineInstance() Instance {
 	vi := Instance{
 		Vim:          vim,
 		window:       windows[0],
-		cursor:       Cursor{}, // Cursor will be set itself
 		currentLevel: 0,        // Start on the first level
 		Cleanup:      cleanup,
 	}
@@ -166,7 +165,6 @@ func (vi *Instance) HandleKeyPress(writer http.ResponseWriter, request *http.Req
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 	} else {
-
 		writer.WriteHeader(http.StatusOK)
 	}
 
@@ -214,18 +212,15 @@ func (vi *Instance) GetLevel(writer http.ResponseWriter, request *http.Request) 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 	} else {
-
 		writer.WriteHeader(http.StatusOK)
 	}
 
 }
 func initLevels() []CompletableLevel {
 
-
 	var levels []CompletableLevel
 
 	// Populate hard coded levels
-
 
 	level1 := NewNavigateLevel("Level 1", [][]byte{
 		{' ', '{', ' ', ' ', '(', ' ', ' ', ')', ' ', ' '},  // Curly braces and parentheses with more gaps
