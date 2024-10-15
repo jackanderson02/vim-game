@@ -26,19 +26,13 @@ func CorsMiddleware(next http.Handler) http.Handler {
 func main() {
 
 	// Now, just get new play Instance
-	// gameInstance := game.NewInstance()
 
 	router := http.NewServeMux()
+
 	// Add authentication layer to each endpoint
 	router.HandleFunc("POST /level", auth.GetLevelWrapper)
 	router.HandleFunc("POST /resetLevel", auth.ResetLevelWrapper)
 	router.HandleFunc("POST /keyPress", auth.HandleKeyPressWrapper)
-	// router.HandleFunc("GET /level/", gameInstance.GetLevel)
-	// router.HandleFunc("GET /resetLevel", gameInstance.ResetLevel)
-	// router.HandleFunc("POST /keyPress", gameInstance.HandleKeyPress)
-
-	// router.HandleFunc("DELETE /api/users/{id}", userAPI.DeleteUser)
-	// router.HandleFunc("PUT /api/users/{id}", userAPI.UpdateUser)
 	// Starting the HTTP server on port 8080
 	fmt.Println("Server listening on port 8080...")
 	err := http.ListenAndServe(":8080", CorsMiddleware(router))
@@ -46,6 +40,7 @@ func main() {
 		fmt.Println("Error starting server:", err)
 	}
 
+	defer auth.DoAllCleanups()
 
-	// defer gameInstance.Cleanup()
+
 }

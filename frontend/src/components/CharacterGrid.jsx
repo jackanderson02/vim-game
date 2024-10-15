@@ -1,22 +1,17 @@
 import CharacterCell from "./CharacterCell";
 import { Arrow90degRight } from "react-bootstrap-icons";
 import "../css/grid.css"
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import UserContext from "../context/IDContext";
 
 
 const MAX_KEYS_DISPLAYED = 15
 
 const CharacterGrid = ({ gridData, fetchLevel}) => {
 
-  let visitorId
-  FingerprintJS.load().then(fp => {
-    fp.get().then(result => {
-        visitorId = result.visitorId;
-        console.log(visitorId); // Logs a unique fingerprint ID for the device
-    });
-  });
+  const fingerprint = useContext(UserContext)
+
   const fetchLevelAndCursor = async () => {
     setCursor(await fetchLevel())
   }
@@ -27,7 +22,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         const response = await fetch('http://localhost:8080/resetLevel', {
           method: 'POST',
           headers: {'Content-type': 'application/json'},
-          body: JSON.stringify({key: vimKeyEvent, auth_key: visitorId})
+          body: JSON.stringify({key: vimKeyEvent, auth_key: fingerprint})
         });
         if (!response.ok){
           throw new Error("Failed to fetch data.")
@@ -112,7 +107,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
 
         const response = await fetch('http://localhost:8080/keyPress', {
           method: 'POST',
-          body: JSON.stringify({key: vimKeyEvent, auth_key: visitorId})
+          body: JSON.stringify({key: vimKeyEvent, auth_key: fingerprint})
         });
         if (!response.ok){
           throw new Error("Failed to fetch data.")

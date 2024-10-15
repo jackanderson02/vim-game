@@ -1,24 +1,20 @@
 import { useEffect } from "react";
 import CharacterGrid from "../components/CharacterGrid";
 import { useState } from "react";
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import { useContext } from "react";
+import UserContext from "../context/IDContext";
 
 const Home = () => {
   const [level, setLevel] = useState(null)
-  let visitorId
-  FingerprintJS.load().then(fp => {
-    fp.get().then(result => {
-        visitorId = result.visitorId;
-        console.log(visitorId); // Logs a unique fingerprint ID for the device
-    });
-  });
+  const fingerprint = useContext(UserContext)
+
   const fetchLevel = async () => {
     try{
       // const response = await fetch('host.docker.internal:8080/level', {
       const response = await fetch('http://localhost:8080/level', {
         method: 'POST',
         headers: {'Content-type': 'application/json'},
-        body: JSON.stringify({auth_key: visitorId})
+        body: JSON.stringify({auth_key: fingerprint})
       });
       if (!response.ok){
         throw new Error("Failed to fetch data.")
