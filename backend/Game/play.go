@@ -26,6 +26,7 @@ type Instance struct {
 	cursor       Cursor
 	levels       []CompletableLevel
 	InstanceResponse map[string]interface{}
+	InstanceRequest map[string]interface{}
 	currentLevel int
 	Cleanup      func()
 }
@@ -125,23 +126,32 @@ func (vi *Instance) makeKeyPressIfValid(key string) {
 	}
 }
 
-func (vi *Instance) HandleKeyPress(request *http.Request) {
+func (vi *Instance) HandleKeyPress() {
 
-	var keypress KeyPress
+	// var keypress KeyPress
 	lvl := vi.GetCurrentLevel()
 	// Decode keypress from json
-	err := json.NewDecoder(request.Body).Decode(&keypress)
-	key := keypress.Key
-
-	if err != nil {
-		log.Print("Error decoding message request body:")
+	rawKey, hasKey := vi.InstanceRequest["key"]
+	if !hasKey{
+		log.Print("No keypress was provided in previous request.")
 	}
+	key, isString := rawKey.(string)
+	if !isString{
+		log.Fatalf("Could not convert given keypress to a string.")
+	}
+	
+	// err := json.NewDecoder(request.Body).Decode(&keypress)
+	// key := keypress.Key
+
+	// if err != nil {
+	// 	log.Print("Error decoding message request body:")
+	// }
 
 	log.Printf("Got keypress %s.", key)
 
 	vi.makeKeyPressIfValid(key)
 
-	err = vi.updateCursorPosition()
+	err := vi.updateCursorPosition()
 
 	if err != nil {
 		// Can handle this case if needed, but for now this just means incomplete input sequence
@@ -175,7 +185,7 @@ func (vi *Instance) WriteInstanceResponseToWriter(writer http.ResponseWriter){
 	log.Print("Writing instance response\n")
 	log.Println(vi.InstanceResponse)
 	json.NewEncoder(writer).Encode(vi.InstanceResponse)
-	vi.ClearResponse()
+	vi.ClearResponseRequest()
 }
 
 func (vi *Instance) initFromLevel() {
@@ -203,11 +213,12 @@ func (vi *Instance) initFromLevel() {
 	lvl.startLevel()
 
 }
-func (vi *Instance) ClearResponse(){
+func (vi *Instance) ClearResponseRequest(){
 	vi.InstanceResponse = make(map[string]interface{})
+	vi.InstanceRequest = make(map[string]interface{})
 }
 
-func (vi *Instance) GetLevel(writer http.ResponseWriter, request *http.Request) {
+func (vi *Instance) GetLevel() {
 	log.Print("Got request for current level.")
 	var stringLevel [][]string = ConvertBytesToStrings(vi.GetCurrentLevel().GetText())
 	// When returning the level, also return the current cursor position
@@ -262,7 +273,7 @@ func (vi *Instance) ProgressLevel() {
 	vi.initFromLevel()                                         
 }
 
-func (vi *Instance) ResetLevel(writer http.ResponseWriter, request *http.Request) {
+func (vi *Instance) ResetLevel() {
 	log.Print("Got request to reset current level")
 	var lvl CompletableLevel = vi.GetCurrentLevel()
 	lvl.resetLevel()
