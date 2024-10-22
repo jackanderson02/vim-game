@@ -24,7 +24,8 @@ func (navLvl *NavigateLevel) IsFinished() bool{
 }
 
 func (navLvl *NavigateLevel) GetProhibtedInputs() []string{
-	return []string{"W", "<S-W>", "W", "<S-B>"} 
+	return []string{}
+	// return []string{"W", "<S-W>", "B", "<S-B>"} 
 }
 
 func NewNavigateLevel(name string, initalText [][]byte, bufferImmutable bool) NavigateLevel{

@@ -118,6 +118,7 @@ func (lvl *Level) finishLevel() {
 	if completionTime < lvl.LevelTime.BestTimeMS {
 		lvl.LevelTime.BestTimeMS = completionTime
 	}
+	lvl.resetLevel() // Resetting the level so it can be played again
 	log.Print(completionTime)
 
 }

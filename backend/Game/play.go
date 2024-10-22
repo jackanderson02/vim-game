@@ -175,7 +175,7 @@ func (vi *Instance) WriteInstanceResponseToWriter(writer http.ResponseWriter){
 	log.Print("Writing instance response\n")
 	log.Println(vi.InstanceResponse)
 	json.NewEncoder(writer).Encode(vi.InstanceResponse)
-	// vi.ClearResponse()
+	vi.ClearResponse()
 }
 
 func (vi *Instance) initFromLevel() {
