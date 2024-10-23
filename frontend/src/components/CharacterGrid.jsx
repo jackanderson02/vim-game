@@ -119,12 +119,15 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         const shouldReload = responseJSON.shouldReload
 
         setBestTime(responseBestTime)
+
         if(finished || shouldReload){
-          // Go off and fetch data again
-          console.log("Fetching next level")
-          fetchLevelAndCursor()
+          setTimeout(() => {
+            fetchLevelAndCursor()
+            setBestTime(0)
+          }, 1500)
         }
         setCursor({Row: responseCursor.Row, Column: responseCursor.Column})
+
 
       } catch (error){
         console.error("Error fetching levels", error)
@@ -143,7 +146,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
 
   return (
     <>
-    {bestTime ? (<h1>{bestTime}</h1>) : <div></div>}
+    {bestTime ? (<h1>Current best time: {bestTime}</h1>) : <div></div>}
     {/* // {bestTime && (<h1>{bestTime}</h1>)} */}
     <div className="grid-container">
         {gridData ? gridData.map((row, rowIndex) => (

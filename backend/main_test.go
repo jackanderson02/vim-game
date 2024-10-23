@@ -22,7 +22,11 @@ func sendDummyKeyPress(t *testing.T, handler http.HandlerFunc, key string) *byte
 	// Create a ResponseRecorder to record the response.
 	rr := httptest.NewRecorder()
 
-	requestBody, err := json.Marshal(game.KeyPress{Key: key})
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"auth_key": "imbecile",
+		"key": key,
+	})
+
 	if err != nil {
 		t.Fatal("Failed to marshal JSON data.")
 	}
@@ -40,19 +44,20 @@ func sendDummyKeyPress(t *testing.T, handler http.HandlerFunc, key string) *byte
 func TestLevelProgression(t *testing.T) {
 
 	// Allows us to skip a level
-	var dummyInstance *game.Instance
+	// var dummyInstance *game.Instance
 
-	var dummyLevelTime *game.LevelTime = &game.LevelTime{
-		0,0,
-	}
+	// var dummyLevelTime *game.LevelTime = &game.LevelTime{
+	// 	0,0,
+	// }
 
-	newInstance := game.NewInstanceWithLevels([]game.CompletableLevel{
-		&DummyLevel{game.Level{LevelName: "dummy1", LevelTime: dummyLevelTime}},
-		&DummyLevel{game.Level{LevelName: "dummy2", LevelTime: dummyLevelTime}},
-	})
+	// newInstance := game.NewInstanceWithLevels([]game.CompletableLevel{
+	// 	&DummyLevel{game.Level{LevelName: "dummy1", LevelTime: dummyLevelTime}},
+	// 	&DummyLevel{game.Level{LevelName: "dummy2", LevelTime: dummyLevelTime}},
+	// })
 
+	// Question of how can we force an arbitary level to progress, how can we cheat?
 	dummyInstance = &newInstance
-	handler := http.HandlerFunc(dummyInstance.HandleKeyPress)
+	handler := http.HandlerFunc()
 
 	initialLevel := dummyInstance.GetCurrentLevel()
 
@@ -78,11 +83,17 @@ func TestLevelProgression(t *testing.T) {
 
 func TestGetLevelHandler(t *testing.T) {
 	rr := httptest.NewRecorder()
-	gameInstance := game.NewInstance()
 
 	// Call the handler, passing in the ResponseRecorder and request.
-	handler := http.HandlerFunc(gameInstance.HandleKeyPress)
-	req := httptest.NewRequest(http.MethodPost, "/level", nil)
+	handler := http.HandlerFunc(auth.GetLevelWrapper)
+	// Create dummy auth key
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"auth_key": "idiot",
+	})
+	if err != nil {
+		t.Fatal("Failed to marshal JSON data.")
+	}
+	req := httptest.NewRequest(http.MethodPost, "/level", bytes.NewBuffer(requestBody))
 
 	handler.ServeHTTP(rr, req)
 
@@ -94,9 +105,8 @@ func TestGetLevelHandler(t *testing.T) {
 
 func TestInputChangesCursorPosition(t *testing.T) {
 	// Send keypress j to game instance
-	gameInstance := game.NewInstance()
 	// Call the handler, passing in the ResponseRecorder and request.
-	handler := http.HandlerFunc(gameInstance.HandleKeyPress)
+	handler := http.HandlerFunc(auth.HandleKeyPressWrapper)
 
 	initialGameState := sendDummyKeyPress(t, handler, "").String()
 	gameStateAfterKeypress := sendDummyKeyPress(t, handler, "l").String()
