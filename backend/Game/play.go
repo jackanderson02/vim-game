@@ -31,14 +31,6 @@ type Instance struct {
 	Cleanup      func()
 }
 
-type InstanceResponse struct {
-	Cursor     Cursor  `json:"cursor"`
-	IsFinished bool    `json:"finished"`
-	BestTime   float64 `json:"bestTime"`
-	ShouldReload bool `json:"shouldReload"`
-}
-
-
 func baselineInstance() Instance {
 	log.Println("Initializing Neovim...")
 	vim, cleanup, err := util.ConnectWhenReady()

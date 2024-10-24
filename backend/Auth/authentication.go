@@ -21,36 +21,48 @@ type Session struct {
 
 type AuthenticatedUsersMutex struct{
 	authenticatedUsers map[string]*Session
+	makeNewGameInstance func() game.Instance
 	sync.Mutex
 }
 
-var usersMapMutex AuthenticatedUsersMutex;
-func init(){
-	usersMapMutex = AuthenticatedUsersMutex{
+
+func NewAuthenticatedUsersMutex() *AuthenticatedUsersMutex{
+	auth:= &(AuthenticatedUsersMutex{
 		authenticatedUsers: make(map[string]*Session),
-	}
-	go checkForExpiredSessions()
+		makeNewGameInstance: game.NewInstance,
+	})
+	go auth.checkForExpiredSessions()
+	return auth
 }
 
-func checkForExpiredSessions(){
+func NewAuthenticatedUsersMutexWithInstanceFunc(makeNewGameInstance func() game.Instance ) *AuthenticatedUsersMutex{
+	auth:= &(AuthenticatedUsersMutex{
+		authenticatedUsers: make(map[string]*Session),
+		makeNewGameInstance: makeNewGameInstance,
+	})
+	go auth.checkForExpiredSessions()
+	return auth
+
+}
+
+func (auth *AuthenticatedUsersMutex) checkForExpiredSessions(){
 	for{
-		usersMapMutex.Lock()
+		auth.Lock()
 		// Check all concurrent sessions to see if any have expired
-		for id, session := range(usersMapMutex.authenticatedUsers){
+		for id, session := range(auth.authenticatedUsers){
 			if time.Now().UnixMilli() >= session.lastInteractionUnixMS + 1000*TIMEOUT_AFTER_S{
 				// delete this session
 				session.vi.Cleanup()
-				delete(usersMapMutex.authenticatedUsers, id)
+				delete(auth.authenticatedUsers, id)
 			}
 		}
-		usersMapMutex.Unlock()
+		auth.Unlock()
 		time.Sleep(time.Second)
 	}
-
 }
 
-func GetLevelWrapper(writer http.ResponseWriter, request *http.Request){
-	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
+func (auth *AuthenticatedUsersMutex) GetLevelWrapper(writer http.ResponseWriter, request *http.Request){
+	session, err:= auth.AuthenticateUser(&HTTPWrapper{writer, request})
 	vi := session.vi
 	if err != nil{
 		log.Print(err.Error())
@@ -60,8 +72,8 @@ func GetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	vi.WriteInstanceResponseToWriter(writer)
 }
 
-func ResetLevelWrapper(writer http.ResponseWriter, request *http.Request){
-	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
+func (auth *AuthenticatedUsersMutex) ResetLevelWrapper(writer http.ResponseWriter, request *http.Request){
+	session, err:= auth.AuthenticateUser(&HTTPWrapper{writer, request})
 	vi := session.vi
 	if err != nil{
 		log.Print(err.Error())
@@ -71,8 +83,8 @@ func ResetLevelWrapper(writer http.ResponseWriter, request *http.Request){
 	vi.WriteInstanceResponseToWriter(writer)
 }
 
-func HandleKeyPressWrapper(writer http.ResponseWriter, request *http.Request){
-	session, err:= AuthenticateUser(&HTTPWrapper{writer, request})
+func (auth *AuthenticatedUsersMutex) HandleKeyPressWrapper(writer http.ResponseWriter, request *http.Request){
+	session, err:= auth.AuthenticateUser(&HTTPWrapper{writer, request})
 	vi := session.vi
 	if err != nil{
 		log.Print(err.Error())
@@ -86,7 +98,7 @@ type HTTPWrapper struct{
 	writer http.ResponseWriter
 	request *http.Request
 }
-func AuthenticateUser(httpWrapper *HTTPWrapper) (*Session, error){
+func (auth *AuthenticatedUsersMutex) AuthenticateUser(httpWrapper *HTTPWrapper) (*Session, error){
 
 	// req := struct{
 	// 	Unique_id string `json:"auth_key"`
@@ -113,20 +125,21 @@ func AuthenticateUser(httpWrapper *HTTPWrapper) (*Session, error){
 	authKey, isString := rawAuthKey.(string)
 	if isString{
 		// Enter concurrency section
-		usersMapMutex.Lock()
-		_, ok := usersMapMutex.authenticatedUsers[authKey]
+		auth.Lock()
+		_, ok := auth.authenticatedUsers[authKey]
+		
 		if !ok{
 			// Add user to authenticated users
-			newInstance := game.NewInstance();
+			newInstance := auth.makeNewGameInstance()
 			newSession := Session{
 				vi: &newInstance,
 			}
-			usersMapMutex.authenticatedUsers[authKey] = &newSession
+			auth.authenticatedUsers[authKey] = &newSession
 		}
 
-		userSession := usersMapMutex.authenticatedUsers[authKey]
+		userSession := auth.authenticatedUsers[authKey]
 		userSession.vi.InstanceRequest = decodedResponse
-		usersMapMutex.Unlock()
+		auth.Unlock()
 		// Exit concurrency section
 
 		userSession.lastInteractionUnixMS = time.Now().UnixMilli();
@@ -144,11 +157,11 @@ func AuthenticateUser(httpWrapper *HTTPWrapper) (*Session, error){
 
 }
 
-func DoAllCleanups(){
+func (auth *AuthenticatedUsersMutex) DoAllCleanups(){
 	// TODO, cleanup all game instances
-	usersMapMutex.Lock()
-	for _, session:= range usersMapMutex.authenticatedUsers{
+	auth.Lock()
+	for _, session:= range auth.authenticatedUsers{
 		session.vi.Cleanup();
 	}
-	usersMapMutex.Unlock()
+	auth.Unlock()
 }

@@ -30,6 +30,7 @@ func main() {
 	router := http.NewServeMux()
 
 	// Add authentication layer to each endpoint
+	auth := auth.NewAuthenticatedUsersMutex()
 	router.HandleFunc("POST /level", auth.GetLevelWrapper)
 	router.HandleFunc("POST /resetLevel", auth.ResetLevelWrapper)
 	router.HandleFunc("POST /keyPress", auth.HandleKeyPressWrapper)
