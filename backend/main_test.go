@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"vim-zombies/Auth"
-	"vim-zombies/Game"
+	auth "vim-zombies/Auth"
+	game "vim-zombies/Game"
 )
 
 type DummyLevel struct {
 	game.Level
 }
 
-func (lvl DummyLevel) IsFinished() bool {
-	return true
+func (lvl DummyLevel) UpdateLevelState() game.LevelStatus{
+	return game.FINISHED
 }
 
 func sendDummyKeyPress(t *testing.T, handler http.HandlerFunc, key string) *bytes.Buffer {
@@ -25,7 +25,7 @@ func sendDummyKeyPress(t *testing.T, handler http.HandlerFunc, key string) *byte
 
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"auth_key": "imbecile",
-		"key": key,
+		"key":      key,
 	})
 
 	if err != nil {
@@ -47,14 +47,13 @@ func TestLevelProgression(t *testing.T) {
 	// Allows us to skip a level
 
 	var dummyLevelTime *game.LevelTime = &game.LevelTime{
-		0,0,
+		0, 0,
 	}
 
-
-	makeNewInstance := func () game.Instance {
+	makeNewInstance := func() game.Instance {
 		return game.NewInstanceWithLevels([]game.CompletableLevel{
-		&DummyLevel{game.Level{LevelName: "dummy1", LevelTime: dummyLevelTime}},
-		&DummyLevel{game.Level{LevelName: "dummy2", LevelTime: dummyLevelTime}},
+			&DummyLevel{game.Level{LevelName: "dummy1", LevelTime: dummyLevelTime}},
+			&DummyLevel{game.Level{LevelName: "dummy2", LevelTime: dummyLevelTime}},
 		})
 	}
 
@@ -74,9 +73,9 @@ func TestLevelProgression(t *testing.T) {
 
 	log.Print(keyPressResponse)
 
-	if finished, ok := (keyPressResponse["finished"]).(bool); ok && !finished{
+	if finished, ok := (keyPressResponse["finished"]).(bool); ok && !finished {
 		t.Error("Response to key press did not indicate that the previous level has been completed")
-	}else if !ok{
+	} else if !ok {
 		t.Error("Response to key press did not return a valid boolean flag called finished to indicate level completion.")
 	}
 }
@@ -104,7 +103,6 @@ func TestGetLevelHandler(t *testing.T) {
 
 }
 
-
 func TestInputChangesCursorPosition(t *testing.T) {
 	// Send keypress j to game instance
 	// Call the handler, passing in the ResponseRecorder and request.
@@ -120,14 +118,14 @@ func TestInputChangesCursorPosition(t *testing.T) {
 	}
 }
 
-func TestAuthKey(t *testing.T){
+func TestAuthKey(t *testing.T) {
 	// Test simply asserts that the auth key is extracted and the server does not respond
 	// with an error
 	auth := auth.NewAuthenticatedUsersMutex()
 	handler := http.HandlerFunc(auth.GetLevelWrapper)
 	rr := httptest.NewRecorder()
 
-	authReq := struct{
+	authReq := struct {
 		Unique_id string `json:"auth_key"`
 	}{
 		"test",
@@ -141,7 +139,7 @@ func TestAuthKey(t *testing.T){
 	req := httptest.NewRequest(http.MethodPost, "/level", bytes.NewBuffer(requestBody))
 
 	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK{
+	if rr.Code != http.StatusOK {
 		t.Error("Got " + rr.Result().Status + " from server but did not expect error.")
 	}
 }

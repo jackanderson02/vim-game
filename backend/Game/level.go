@@ -4,7 +4,7 @@ import (
 	"log"
 	"math"
 	"time"
-	"vim-zombies/Utilities"
+	util "vim-zombies/Utilities"
 )
 
 type Cursor struct {
@@ -23,23 +23,28 @@ type Level struct {
 	bufferImmutable   bool
 	levelState        [][]bool
 	initialLevelState [][]bool
+	levelStatus LevelStatus 
 	LevelTime         *LevelTime
 }
 
-type NavigateLevel struct {
-	Level
-}
+// Game state constants
+type LevelStatus int
+const (
+	PLAYING  LevelStatus = iota
+	FINISHED            = 1
+	OVER                = 2
+)
 
 type CompletableLevel interface {
 	FillTextBlanks()
 	GetText() [][]byte
 	GetBestTime() int64
-	IsFinished() bool
+	UpdateLevelState() LevelStatus
 	GetProhibtedInputs() []string
 	IsBufferImmutable() bool
 	CursorCallback(Cursor)
 	startLevel()
-	finishLevel() 
+	finishLevel()
 	resetLevel()
 }
 
@@ -105,6 +110,7 @@ func ConvertBytesToStrings(byteArray [][]byte) [][]string {
 }
 
 func (lvl *Level) startLevel() {
+	lvl.levelStatus = PLAYING
 
 	lvl.LevelTime = &LevelTime{
 		StartMS:    time.Now().UnixMilli(),

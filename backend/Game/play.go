@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"vim-zombies/Utilities"
+	util "vim-zombies/Utilities"
+
 	"github.com/neovim/go-client/nvim"
 )
 
@@ -21,14 +22,14 @@ var errorCursor Cursor = Cursor{
 }
 
 type Instance struct {
-	Vim          *nvim.Nvim
-	window       nvim.Window
-	cursor       Cursor
-	levels       []CompletableLevel
+	Vim              *nvim.Nvim
+	window           nvim.Window
+	cursor           Cursor
+	levels           []CompletableLevel
 	InstanceResponse map[string]interface{}
-	InstanceRequest map[string]interface{}
-	currentLevel int
-	Cleanup      func()
+	InstanceRequest  map[string]interface{}
+	currentLevel     int
+	Cleanup          func()
 }
 
 func baselineInstance() Instance {
@@ -47,10 +48,10 @@ func baselineInstance() Instance {
 	}
 
 	vi := Instance{
-		Vim:          vim,
-		window:       windows[0],
-		currentLevel: 0,        // Start on the first level
-		Cleanup:      cleanup,
+		Vim:              vim,
+		window:           windows[0],
+		currentLevel:     0, // Start on the first level
+		Cleanup:          cleanup,
 		InstanceResponse: make(map[string]interface{}),
 	}
 
@@ -110,7 +111,7 @@ func getLastErrorMessage(vim *nvim.Nvim) (string, error) {
 
 func (vi *Instance) makeKeyPressIfValid(key string) {
 	prohibtedInputs := vi.GetCurrentLevel().GetProhibtedInputs()
-	if slices.Contains(prohibtedInputs, key) || slices.Contains(prohibtedInputs, strings.ToUpper(key)){
+	if slices.Contains(prohibtedInputs, key) || slices.Contains(prohibtedInputs, strings.ToUpper(key)) {
 		// Optionally return to user that this input is not allowed
 		log.Print("Prohibited input received.")
 	} else {
@@ -124,14 +125,14 @@ func (vi *Instance) HandleKeyPress() {
 	lvl := vi.GetCurrentLevel()
 	// Decode keypress from json
 	rawKey, hasKey := vi.InstanceRequest["key"]
-	if !hasKey{
+	if !hasKey {
 		log.Print("No keypress was provided in previous request.")
 	}
 	key, isString := rawKey.(string)
-	if !isString{
+	if !isString {
 		log.Fatalf("Could not convert given keypress to a string.")
 	}
-	
+
 	// err := json.NewDecoder(request.Body).Decode(&keypress)
 	// key := keypress.Key
 
@@ -156,24 +157,30 @@ func (vi *Instance) HandleKeyPress() {
 
 	var responseBestTime int64 = 0
 
-	finished := lvl.IsFinished()
-	if finished {
+	gameStatus := lvl.UpdateLevelState()
+	finished := gameStatus == FINISHED
+	levelOver := gameStatus == OVER
+	if finished{
 		log.Print("Finished level")
 		vi.ProgressLevel()
 		responseBestTime = lvl.GetBestTime()
+	}else if(levelOver){
+		log.Print("Level over")
+		vi.ResetLevel()
 	}
 
-	log.Printf("Best time %d" , responseBestTime )
+	log.Print(levelOver)
+	log.Printf("Best time %d", responseBestTime)
 
 	// Update the response map
 	vi.InstanceResponse["cursor"] = vi.cursor
 	vi.InstanceResponse["finished"] = finished
 	vi.InstanceResponse["bestTime"] = float64(float64(responseBestTime) / 1000.0)
+	vi.InstanceResponse["shouldReload"] = levelOver
 
 }
 
-
-func (vi *Instance) WriteInstanceResponseToWriter(writer http.ResponseWriter){
+func (vi *Instance) WriteInstanceResponseToWriter(writer http.ResponseWriter) {
 	log.Print("Writing instance response\n")
 	log.Println(vi.InstanceResponse)
 	json.NewEncoder(writer).Encode(vi.InstanceResponse)
@@ -205,7 +212,7 @@ func (vi *Instance) initFromLevel() {
 	lvl.startLevel()
 
 }
-func (vi *Instance) ClearResponseRequest(){
+func (vi *Instance) ClearResponseRequest() {
 	vi.InstanceResponse = make(map[string]interface{})
 	vi.InstanceRequest = make(map[string]interface{})
 }
@@ -234,7 +241,7 @@ func initLevels() []CompletableLevel {
 		{' ', '!', ' ', ' ', '&', ' ', ' ', '|', ' ', ' '},  // Logical operators
 		{' ', ' ', ':', ' ', ' ', ',', ' ', ' ', '_', ' '},  // Colon, comma, and underscore
 		{' ', '%', ' ', ' ', '[', ' ', ' ', ']', ' ', ' '},
-	}, true) 
+	}, true)
 
 	levels = append(levels, &level1)
 
@@ -251,18 +258,30 @@ func initLevels() []CompletableLevel {
 	}, true)
 	levels = append(levels, &level2)
 
+	level3 := NewStaticAvoidanceLevel("Level 3", [][]byte{
+		{' ', '{', ' ', 'X', ' ', 'X', ' ', '}', 'X', '['},   // Curly braces, parentheses, brackets
+		{'+', ' ', '-', 'X', '*', ' ', '/', ' ', 'X', ' '},   // Arithmetic operators
+		{' ', '<', ' ', '>', 'X', 'X', ' ', '!', ' ', '&'},   // Comparison and logical operators
+		{'$', ' ', '@', ' ', '#', ' ', '^', 'X', '_', ' '},   // Variable identifiers, bitwise operators
+		{'?', ' ', 'X', ' ', '.', ' ', ',', ' ', ';', ' '},   // Conditional, punctuation
+		{' ', '|', 'X', '\\', ' ', '`', ' ', '~', ' ', '\''}, // Bitwise OR, escape, quotes
+		{'=', ' ', '=', ' ', 'X', ' ', '<', 'X', '>', ' '},   // Equality and relational operators
+		{'X', '&', ' ', '|', ' ', 'X', ' ', '>', ' ', '/'},   // Logical operators, lambda, comments
+		{'"', ' ', '<', ' ', '>', 'X', '*', ' ', 'X', ' '},   // Shift operators, exponentiation, logical AND
+	}, true)
+	levels = append(levels, &level3)
 	return levels
 }
 
-func (vi *Instance) GetCurrentLevel() CompletableLevel{
+func (vi *Instance) GetCurrentLevel() CompletableLevel {
 	return vi.levels[vi.currentLevel]
 
 }
 
 func (vi *Instance) ProgressLevel() {
-	vi.GetCurrentLevel().finishLevel() // finish the current level to update the times
-	vi.currentLevel = (vi.currentLevel + 1) % (len(vi.levels))  // Update to point to the next level; game levels wrap around
-	vi.initFromLevel()                                         
+	vi.GetCurrentLevel().finishLevel()                         // finish the current level to update the times
+	vi.currentLevel = (vi.currentLevel + 1) % (len(vi.levels)) // Update to point to the next level; game levels wrap around
+	vi.initFromLevel()
 }
 
 func (vi *Instance) ResetLevel() {
