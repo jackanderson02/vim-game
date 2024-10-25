@@ -23,21 +23,23 @@ type Level struct {
 	bufferImmutable   bool
 	levelState        [][]bool
 	initialLevelState [][]bool
-	levelStatus LevelStatus 
+	levelStatus       LevelStatus
 	LevelTime         *LevelTime
 }
 
 // Game state constants
 type LevelStatus int
+
 const (
 	PLAYING  LevelStatus = iota
-	FINISHED            = 1
-	OVER                = 2
+	FINISHED             = 1
+	OVER                 = 2
 )
 
 type CompletableLevel interface {
 	FillTextBlanks()
-	GetText() [][]byte
+	GetLevelInformation() map[string]interface{}
+	GetLevelText() [][]byte
 	GetBestTime() int64
 	UpdateLevelState() LevelStatus
 	GetProhibtedInputs() []string
@@ -72,7 +74,13 @@ func (lvl *Level) IsBufferImmutable() bool {
 	return lvl.bufferImmutable
 }
 
-func (lvl *Level) GetText() [][]byte {
+func (lvl *Level) GetLevelInformation() map[string]interface{}{
+	return map[string]interface{}{
+		"level": ConvertBytesToStrings(lvl.text),
+	}
+}
+
+func (lvl *Level) GetLevelText() [][]byte{
 	return lvl.text
 }
 
@@ -97,6 +105,7 @@ func (lvl *Level) FillTextBlanks() {
 	copy(lvl.text, txt_copy)
 	lvl.text = txt_copy
 }
+
 func ConvertBytesToStrings(byteArray [][]byte) [][]string {
 	stringArray := make([][]string, len(byteArray))
 	for i, row := range byteArray {
@@ -105,7 +114,6 @@ func ConvertBytesToStrings(byteArray [][]byte) [][]string {
 			stringArray[i][j] = string(b)
 		}
 	}
-
 	return stringArray
 }
 

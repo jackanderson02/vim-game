@@ -1,6 +1,7 @@
 package game
 
 import (
+	"log"
 	util "vim-zombies/Utilities"
 )
 
@@ -13,6 +14,7 @@ func (navLvl *NavigateLevel) CursorCallback(cursorPosition Cursor) {
 }
 
 func (navLvl *NavigateLevel) UpdateLevelState() LevelStatus{
+	log.Print("Nav level update level state")
 	finished := true
 	stringBuffer := ConvertBytesToStrings(navLvl.text)
 	for i, row := range stringBuffer {
@@ -25,6 +27,7 @@ func (navLvl *NavigateLevel) UpdateLevelState() LevelStatus{
 
 	if finished{
 		navLvl.levelStatus = FINISHED
+		log.Print("Should be finished")
 	}
 
 	return navLvl.levelStatus

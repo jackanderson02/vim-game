@@ -12,9 +12,22 @@ import (
 	"github.com/neovim/go-client/nvim"
 )
 
-type KeyPress struct {
-	Key string `json:"key" vim:"key"`
-	// Open to add additional fields such as time stamp
+type ShouldReloadResponse struct {
+	ShouldReload bool   `json:"shouldReload"`
+	ReloadText   string `json:"reloadText"`
+}
+
+func NewDoNotReloadResponse() ShouldReloadResponse {
+	return ShouldReloadResponse{
+		ShouldReload: false,
+	}
+}
+
+func NewReloadResponse(reloadText string) ShouldReloadResponse {
+	return ShouldReloadResponse{
+		ShouldReload: true,
+		ReloadText:   reloadText,
+	}
 }
 
 var errorCursor Cursor = Cursor{
@@ -97,6 +110,7 @@ func (vi *Instance) updateCursorPosition() error {
 	vi.cursor = Cursor{
 		cursor[0] - 1, cursor[1],
 	}
+	log.Printf("Settings cursor to %d, %d", cursor[0]-1, cursor[1])
 
 	return nil
 }
@@ -132,14 +146,6 @@ func (vi *Instance) HandleKeyPress() {
 	if !isString {
 		log.Fatalf("Could not convert given keypress to a string.")
 	}
-
-	// err := json.NewDecoder(request.Body).Decode(&keypress)
-	// key := keypress.Key
-
-	// if err != nil {
-	// 	log.Print("Error decoding message request body:")
-	// }
-
 	log.Printf("Got keypress %s.", key)
 
 	vi.makeKeyPressIfValid(key)
@@ -160,23 +166,22 @@ func (vi *Instance) HandleKeyPress() {
 	gameStatus := lvl.UpdateLevelState()
 	finished := gameStatus == FINISHED
 	levelOver := gameStatus == OVER
-	if finished{
+	vi.InstanceResponse["cursor"] = vi.cursor
+	if finished {
 		log.Print("Finished level")
 		vi.ProgressLevel()
 		responseBestTime = lvl.GetBestTime()
-	}else if(levelOver){
-		log.Print("Level over")
+	} else if levelOver {
 		vi.ResetLevel()
+		vi.InstanceResponse["shouldReloadResponse"] = NewReloadResponse("Level failed... resetting level")
 	}
 
 	log.Print(levelOver)
 	log.Printf("Best time %d", responseBestTime)
 
 	// Update the response map
-	vi.InstanceResponse["cursor"] = vi.cursor
 	vi.InstanceResponse["finished"] = finished
 	vi.InstanceResponse["bestTime"] = float64(float64(responseBestTime) / 1000.0)
-	vi.InstanceResponse["shouldReload"] = levelOver
 
 }
 
@@ -195,7 +200,7 @@ func (vi *Instance) initFromLevel() {
 
 	lvl.FillTextBlanks()
 
-	if err := vim.SetBufferLines(buffer, 0, -1, true, lvl.GetText()); err != nil {
+	if err := vim.SetBufferLines(buffer, 0, -1, true, lvl.GetLevelText()); err != nil {
 		log.Fatalf("Failed to set buffer lines: %v", err)
 	}
 
@@ -219,9 +224,15 @@ func (vi *Instance) ClearResponseRequest() {
 
 func (vi *Instance) GetLevel() {
 	log.Print("Got request for current level.")
-	var stringLevel [][]string = ConvertBytesToStrings(vi.GetCurrentLevel().GetText())
+	// var stringLevel [][]string = ConvertBytesToStrings(vi.GetCurrentLevel().GetLevelText())
 	// When returning the level, also return the current cursor position
-	vi.InstanceResponse["level"] = stringLevel
+	// vi.InstanceResponse["level"] = stringLevel
+	// vi.InstanceResponse["cursor"] = vi.cursor
+	currentLevelInformation:= vi.GetCurrentLevel().GetLevelInformation()
+
+	for key, value := range currentLevelInformation{
+		vi.InstanceResponse[key] = value
+	}
 	vi.InstanceResponse["cursor"] = vi.cursor
 
 }
@@ -256,6 +267,7 @@ func initLevels() []CompletableLevel {
 		{' ', '&', ' ', '|', ' ', '>', ' ', '>', ' ', '/'},   // Logical operators, lambda, comments
 		{'"', ' ', '<', ' ', '>', ' ', '*', ' ', '&', ' '},   // Shift operators, exponentiation, logical AND
 	}, true)
+
 	levels = append(levels, &level2)
 
 	level3 := NewStaticAvoidanceLevel("Level 3", [][]byte{
@@ -268,15 +280,17 @@ func initLevels() []CompletableLevel {
 		{'=', ' ', '=', ' ', 'X', ' ', '<', 'X', '>', ' '},   // Equality and relational operators
 		{'X', '&', ' ', '|', ' ', 'X', ' ', '>', ' ', '/'},   // Logical operators, lambda, comments
 		{'"', ' ', '<', ' ', '>', 'X', '*', ' ', 'X', ' '},   // Shift operators, exponentiation, logical AND
-	}, true)
+	}, true, []string{"X"})
+
 	levels = append(levels, &level3)
 	return levels
 }
 
 func (vi *Instance) GetCurrentLevel() CompletableLevel {
 	return vi.levels[vi.currentLevel]
-
 }
+
+
 
 func (vi *Instance) ProgressLevel() {
 	vi.GetCurrentLevel().finishLevel()                         // finish the current level to update the times

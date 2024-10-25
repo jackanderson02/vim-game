@@ -8,26 +8,29 @@ import UserContext from "../context/UserContext";
 
 const MAX_KEYS_DISPLAYED = 15
 
-const CharacterGrid = ({ gridData, fetchLevel}) => {
+const CharacterGrid = ({ gridData, cellColours, fetchLevel}) => {
+  console.log(cellColours)
 
   const fingerprint = useContext(UserContext)
 
-  const fetchLevelAndCursor = async () => {
-    setCursor(await fetchLevel())
+  const fetchLevelAndCursor = async (loadLevelAfter) => {
+    const cursor = await (fetchLevel(loadLevelAfter))
+    console.log("fetching level and cursor")
+    setCursor(cursor)
+    // setCursor(cursor)
   }
 
   const requestResetLevel = async () => {
       try{
-
         const response = await fetch('http://localhost:8080/resetLevel', {
           method: 'POST',
           headers: {'Content-type': 'application/json'},
-          body: JSON.stringify({key: vimKeyEvent, auth_key: fingerprint})
+          body: JSON.stringify({auth_key: fingerprint})
         });
         if (!response.ok){
           throw new Error("Failed to fetch data.")
         }
-        fetchLevelAndCursor()
+        await fetchLevelAndCursor()
         
 
       } catch (error){
@@ -35,10 +38,12 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
       }
     }
 
+
   const [keysPressed, setKeysPressed] = useState("")
   const [cursor, setCursor] = useState({Row:0, Column: 0})
   const [bestTime, setBestTime] = useState(0)
 
+  const [displayTextToUser, setDisplayTextToUser] = useState("")
 
   const vimifiedMappings = {
     'Escape': "<ESC>",
@@ -50,6 +55,13 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
 
   // Avoid Ctrl and Shift being sent additionally as separate key presses
   const avoidRepeated = ['Control', 'Shift']
+
+  const sleep  = function sleep(milliseconds) {
+    const start = Date.now();
+    while (Date.now() - start < milliseconds) {
+        // Busy-wait loop
+    }
+  }
 
   const vimifyKeyEvent = (event) => {
     console.log(event)
@@ -116,19 +128,23 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         const responseCursor = responseJSON.cursor
         const finished = responseJSON.finished
         const responseBestTime = responseJSON.bestTime
-        const shouldReload = responseJSON.shouldReload
+        const shouldReloadResponse = responseJSON.shouldReloadResponse
+        const shouldReload = shouldReloadResponse.shouldReload
 
-        setBestTime(responseBestTime)
+        console.log("Response cursor" + responseCursor.Row + "," + responseCursor.Column)
+        setCursor(responseCursor)
+        setDisplayTextToUser("")
 
-        if(finished || shouldReload){
-          setTimeout(() => {
-            fetchLevelAndCursor()
-            setBestTime(0)
-          }, 1500)
+        if(finished){
+          setBestTime(responseBestTime)
+          setTimeout(() => {fetchLevelAndCursor()}, 500)
+          // setBestTime(0)
+        }else if(shouldReloadResponse && shouldReload){
+          // Display the shouldReloadResponse text
+          setDisplayTextToUser(shouldReloadResponse.reloadText)
+          setTimeout(() => {fetchLevelAndCursor()}, 250)
         }
-        setCursor({Row: responseCursor.Row, Column: responseCursor.Column})
-
-
+        
       } catch (error){
         console.error("Error fetching levels", error)
       }
@@ -155,6 +171,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
               <CharacterCell
                 key={colIndex}
                 char={char}
+                cellColour={cellColours? cellColours[rowIndex][colIndex]: null}
                 isCursor={rowIndex === cursor.Row && colIndex === cursor.Column}
               />
             ))}
@@ -162,6 +179,7 @@ const CharacterGrid = ({ gridData, fetchLevel}) => {
         )): <div></div>}
       <h2>{keysPressed}</h2>
       {gridData ? (<Button variant="warning" style={{position: "relative", float:"right"}} onClick={() => requestResetLevel()}><h3> Reset level</h3></Button>): <div></div>}
+      {displayTextToUser? (<h3 style={{position: "relative", float:"left"}}> {displayTextToUser} </h3>): <div></div>}
       
       </div>
     </>

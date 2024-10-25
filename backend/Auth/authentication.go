@@ -143,7 +143,12 @@ func (auth *AuthenticatedUsersMutex) AuthenticateUser(httpWrapper *HTTPWrapper) 
 		// Exit concurrency section
 
 		userSession.lastInteractionUnixMS = time.Now().UnixMilli();
-		userSession.vi.InstanceResponse["shouldReload"] = !ok
+
+		if ok{
+			userSession.vi.InstanceResponse["shouldReloadResponse"] = game.NewDoNotReloadResponse()
+		}else{
+			userSession.vi.InstanceResponse["shouldReloadResponse"] = game.NewReloadResponse("Loading new session")
+		}
 		// Reload iff new user was just created, this forces a frontend reload which involves
 		// fetching the level and cursor again in the event that the connection was timed out.
 
@@ -152,8 +157,6 @@ func (auth *AuthenticatedUsersMutex) AuthenticateUser(httpWrapper *HTTPWrapper) 
 	}else{
 		return &Session{}, errors.New("Auth key could not be converted to a string.")
 	}
-
-
 
 }
 

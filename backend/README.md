@@ -19,4 +19,3 @@ docker stop run; docker rm run
 ### Doing everything at once
 
 docker stop run; docker rm run; docker build -t vim-game -f docker-prod .; docker run -p 8080:8080 --name run vim-game 
-

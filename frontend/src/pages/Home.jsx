@@ -6,6 +6,7 @@ import UserContext from "../context/UserContext";
 
 const Home = () => {
   const [level, setLevel] = useState(null)
+  const [cellColours, setCellColours] = useState(null)
   const fingerprint = useContext(UserContext)
 
   const fetchLevel = async () => {
@@ -24,9 +25,9 @@ const Home = () => {
       console.log(levelJSON)
 
       setLevel(levelJSON.level)
+      setCellColours(levelJSON.cellColours)
 
       return levelJSON.cursor
-
 
     } catch (error){
       console.error("Error fetching levels", error)
@@ -36,11 +37,10 @@ const Home = () => {
   useEffect(() => {
     fetchLevel()
   }, [])
-  // const gridData = [["a"]]
 
 
   return (
-    <CharacterGrid gridData={level} fetchLevel={fetchLevel} />
+    <CharacterGrid gridData={level} cellColours={cellColours} fetchLevel={fetchLevel} />
   );
 
 };
